@@ -176,6 +176,183 @@ mydens=np.array(jnp.exp(compute_log_lik(searchPts,y_data,T_vec) - log_evidence))
 myX=np.array(searchPts)
 
 ```
+
+Now let us try to unpack what is going on in the above code.
+
+## Code Explanation: Bayesian Logistic Regression with VEGAS Integration
+
+This code performs Bayesian inference for a logistic regression model using JAX and the VEGAS Monte Carlo integration library. It estimates the marginal likelihood (evidence) for parameter $a_0$ by integrating the unnormalized posterior over its prior distribution.
+
+### 1. Data Preparation
+```python
+y_data=jnp.array(thedata.iloc[:,0],dtype=jnp.float32)[:,None]  # Response variable (n×1)
+k_vec=jnp.array(thedata.iloc[:,1])-1                           # Index variable (not used here)
+T_vec=jnp.array(thedata.iloc[:,2],dtype=jnp.float32)[:,None]   # Predictor variable (n×1)
+```
+Converts pandas DataFrame columns to JAX tensors. `y_data` contains binary outcomes $y_i \in \{0,1\}$, and `T_vec` contains binary treatment predictor values $T_i$.
+
+### 2. Model Parameters and Log-Likelihood
+```python
+pars=jnp.array([[0.1,-1.1,2.1]],dtype=jnp.float32)
+```
+Initial parameter guess (not used in final computation).
+
+**Log-likelihood function:**
+```python
+@jax.jit
+def compute_log_lik(theta, y, T):
+    a0 = theta[0,:]                    # Extract parameter a₀
+    eta = a0                           # Linear predictor: ηᵢ = a₀ (broadcast across observations)
+    logL = jnp.sum(y*eta - jnp.log(1+jnp.exp(eta)), axis=0)  # Log-likelihood sum
+    prior_a0 = jax.scipy.stats.norm.logpdf(a0, loc=0., scale=10.)  # N(0,10) prior
+    logDens = logL + prior_a0          # Unnormalized log-posterior
+    return logDens
+```
+
+The above JAX function defines the log likelihood for a Benoulli random variable $y_i \sim Bernoulli(p_i)$, with
+
+$$
+p_i = \frac{1}{1 + e^{-\eta_i}}, where \quad \eta_i = a_0 + a_1T_i 
+$$
+
+In this case, we are implementing an intercept only model, i.e., $\eta_i = a_0$. Therefore, 
+$$
+P(y_i=1|T_i) = \frac{1}{1 + e^{-(a_0)}}
+$$
+The log-likelihood for a single observation is given by
+
+$$
+\log p(yi|a_0) = y_i\eta_i - log(1 + e^{\eta_i})
+$$
+And for \(n\) observations is given by:
+
+$$
+\log L(a_0) = \sum_{i=1}^n \left[ y_i \cdot \eta_i - \log(1 + e^{\eta_i}) \right]
+$$
+Since $\eta_i = a_0$ in this cse, this simplifies to
+$$
+\log L(a_0) = \sum_{i=1}^n \left[ y_i \cdot a_0 - \log(1 + e^{a_0}) \right]
+$$
+The prior for $a_0$ is drawn as $a_0 \sim N(mean =0, variance = 10^2).$ using the ```jax.scipy.stats.norm.logpdf``` function. Since this prior is in log scale, we get,
+
+$$
+\log p(a_0) = -1/2(a_0/10)^2 - \log (10(2\pi)^{-1/2}) \quad From \quad Normal \quad pdf
+$$
+
+Now $Posterior \: density \propto Likelihood X Prior$. Therefore on the log scale, $\log (Posterior \: density) \propto \log (Likelihood) + \log (Prior)$ 
+
+Which gives is the unnormalized posterior (numerator) as:
+$$
+\log f(a_0) = \log L(a_0) + \log p(a_0)
+$$
+
+
+No that we have our numerator, let us see how we can find the denominator, i.e., the evidence or marginal, so that we can get the normalized desnity. Here is where we can see the full power of ```vegas```.
+
+### 3. VEGAS Integration Setup
+```python
+@vegas.rbatchintegrand
+class StableLikelihood:
+    def __init__(self, y, T):
+        self.y = y
+        self.T = T
+        self.l_max = 0.0  # Maximum log-likelihood (for numerical stability)
+
+    def __call__(self, theta):
+        theta_jax = jnp.array(theta)
+        log_lik = compute_log_lik(theta_jax, self.y, self.T)
+        return jnp.exp(log_lik - self.l_max)  # Shifted integrand
+        
+model = StableLikelihood(y=y_data,T=T_vec)
+```
+
+But before that, **What is shifting logic?** 
+
+In Bayesian computation, we often need to evaluate $f(\theta) = exp(log(f(\theta))$. Where, $\log(f(\theta) = \log p(y | \theta) + \log p(\theta)$.
+
+However, $\log(f(\theta))$ is often a large negative number, e.g., -1000 or -2000, making $f(\theta) = exp(log(f(\theta)) = exp(-1000) \approx 0$. This causes numerical underflow, meaning the computer treats values as zero, which breaks Monte Carlo integration.
+
+**The core idea of shifting**
+
+To avoid this, we substact a constant $l_{max} = \underset{\theta}{max} \log f(\theta)$. Then redefine $f^* = exp(\log f(\theta) - l_{max})$. Since $\log f(\theta) - l_{max}\le 0$, we get, $\lt f^* \le 1$.
+
+Interestingly, this hack can be very easily taken care of while performing the integration as follows:
+
+We want, $I = \int f(\theta)d\theta$
+
+Using the shifting function, we get $I = \int exp(\log f(\theta))d\theta$
+
+Writing $\log f(\theta)$ as $\log f(\theta) = (\log f(\theta) - l_{max}) + l_{max}$ and substitutuing it for the above integrand, we get $I = \int exp(\log f(\theta) - l_{max}).exp(l_{max})d\theta = exp(l_{max})\cdot\int f^*(\theta)d\theta$
+
+This is exactly what the above code chunk is doing. It is initializing $l_{max}$ with $0$, computing the log likelihood for $\log f(\theta)$ using the `JAX` `compute_log_lik` function we had defined earlier, and returning the shifted integrand $\int f^*(\theta)d\theta = \int exp(\log f(\theta) - l_{max})d\theta$. During the wamup $l_max$ is updated with the meximum found so far. 
+
+
+### 4. Integration Process
+```python
+start = jnp.array([-2], dtype=jnp.float32)
+stop = jnp.array([1], dtype=jnp.float32)
+searchPts = jnp.transpose(jnp.linspace(start, stop, 500))
+model.l_max = jnp.max(compute_log_lik(searchPts, model.y, model.T))
+```
+
+This part is doing grid search for the Monte Carlo sampling with
+
+- Creates 500 grid points from \([-2, 1]\) to find maximum log-posterior
+- Updates `l_max`
+
+```python
+integ = vegas.Integrator(jnp.array([[-2, 1]]*1,dtype=jnp.float32))
+# STAGE 1: Warm-up
+res_warmup = integ(model, nitn=10, neval=10000)
+# STAGE 2: Production (Stable Integration)
+result = integ(model, nitn=10, neval=50000)
+```
+
+**Two-stage VEGAS integration:**
+1. **Warm-up** (`nitn=10, neval=10000`): Adapts integration grid
+2. **Production** (`nitn=10, neval=50000`): Final estimate
+
+### 5. Evidence Calculation
+```python
+log_evidence = model.l_max + jnp.log(result.mean)
+```
+**Final result:** $\log I = l_{\max} + \log(\hat{I}))$, where $\hat{I}$ is the mean of VEGAS estimate of the shifted integral.
+
+**Q-value interpretation:** Should be ~0.5 for well-converged integration.
+
+### 6. Posterior Samples
+```python
+mydens = np.array(jnp.exp(compute_log_lik(searchPts, y_data, T_vec) - log_evidence))
+```
+Computes the normalized **posterior densities** on grid:
+$$
+p(a_0|D) = \frac{p(D|a_0) \pi(a_0)}{I}, \quad I = \exp(\log I)
+$$
+
+Or in the log scale,
+
+$$
+\log p(a0∣y)=logf(a_0)−logI \implies p(a0∣y)=exp(f(a0)−logI)
+$$
+
+We estimated $f(a_0)$ in step 2 and $I$ in step 3. The above code replaces this values to find the log posterior.
+
+**Summary:** 
+
+1. Convert data into tensors
+
+2. Define log-likelihood + prior
+
+3. Compute unnormalized log posterior
+
+4. Define the integrand for evidence
+
+5. Estimate the evidence (marginal)
+
+5. Compute the normalized log posterior desnity
+
+
+**Now we are ready to plot our posterior**
 ```{r onevarR,include=TRUE,eval=TRUE}
 
 plot(py$myX,py$mydens,type="l")
