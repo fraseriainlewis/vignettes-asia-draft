@@ -57,7 +57,7 @@ $$
 
 ```{r rsetup, include=FALSE,eval=TRUE}
 library(reticulate)
-use_virtualenv("/Users/work/tfp")
+use_virtualenv("/mnt/myvenv")
 library(rstan)
 library(bayesplot)
 library(ggplot2)
