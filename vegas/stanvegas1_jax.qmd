@@ -70,6 +70,7 @@ install_if_missing(c("numpy","pandas","jax","vegas","gvar"))
 library(rstan)
 library(bayesplot)
 library(ggplot2)
+library(gridExtra) # Add this line to load the gridExtra package
 #reticulate::py_install("bash") # just a test
 ```
 
