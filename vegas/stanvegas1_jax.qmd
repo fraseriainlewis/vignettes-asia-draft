@@ -11,8 +11,8 @@ par(mfrow=c(1,2))
 
 # Create a single ggplot with density and Vegas probability line/points combined
 gg_combined <- ggplot(data.frame(
-  x = c(extract(stan_fit_2, "beta[1,1"])$beta, py$a0np),
-  y = c(density(extract(stan_fit_2, "beta[1,1"])$beta, n = 100)$y, py$prob_dens)
+  x = c(extract(stan_fit_2, "beta[1,1]"))$beta, py$a0np),
+  y = c(density(extract(stan_fit_2, "beta[1,1]"))$beta, n = 100)$y, py$prob_dens)
 ), aes(x = x, y = y)) +
   geom_density(fill = "blue", alpha = 0.6) +
   geom_line(color = "red") +
