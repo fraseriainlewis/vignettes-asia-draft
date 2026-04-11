@@ -56,8 +56,20 @@ $$
 $$
 
 ```{r rsetup, include=FALSE,eval=TRUE}
+if(Sys.info()["sysname"]=="Darwin" && Sys.info()["machine"]=="arm64"){
+  cat("MacOS and Apple ARM detected\n")
+  } else {cat("WARNING: This vignette is for MLX (Apple ARM Platform)")}
 library(reticulate)
-use_virtualenv("/mnt/myvenv")
+# use built-in reticulate environment - can use custom if desired - see use_virtualenv
+install_if_missing <- function(packages) {
+  for (pkg in packages) {
+    if (!reticulate::py_module_available(pkg)) {
+      reticulate::py_install(pkg)
+    }
+  }
+}
+install_if_missing(c("numpy","pandas","jax","vegas","gvar","mlx"))
+#use_virtualenv("/mnt/myvenv") # or use custom venv
 library(rstan)
 library(bayesplot)
 library(ggplot2)
