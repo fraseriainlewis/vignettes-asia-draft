@@ -6,10 +6,10 @@ execute:
   freeze: true
 
 website:
-  title: "Asia"
+  title: "Asia Draft Site"
   #site-url: 
   navbar:
-    logo: "GSK_logo_2022.svg"
+    #logo: "GSK_logo_2022.svg"
     background: "black" # Can also use "#000000" or "dark"
     foreground: "white"   # Ensures text/icons are visible
     search: true
