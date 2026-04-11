@@ -506,7 +506,7 @@ par(mfrow=c(1,2))
 #print(summary(stan_fit_2))
 
 # Density plot using ggplot2
-gg_beta1 <- ggplot(data.frame(beta1 = extract(stan_fit_2, "beta[1,1]")$beta[1,1]), aes(x = beta1)) +
+gg_beta1 <- ggplot(data.frame(beta1 = extract(stan_fit_2, "beta[1,1]")$beta), aes(x = beta1)) +
   geom_density(fill = "blue", alpha = 0.6) +
   labs(title = "Density Plot of beta[1,1]", x = "beta[1,1]", y = "Density")
 
