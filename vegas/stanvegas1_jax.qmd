@@ -512,11 +512,6 @@ points(py$a0np,py$prob_dens,col="brown",pch=21,bg="brown")
 #f_interp <- splinefun(py$a0np, py$prob_dens, method = "fmm")
 #lines(py$a0np,f_interp(py$a0np),col="magenta")
 
-# Panel plot
-par(mfrow=c(1,2))
-plot(density(extract(stan_fit_2,"beta[1,1]")$"beta[1,1]"),main="Density Plot of beta[1,1]",col="blue")
-lines(py$a0np,py$prob_dens,col="red")
-points(py$a0np,py$prob_dens,col="brown",pch=21,bg="brown")
-plot(py$a0np,py$prob_dens,type="l",main="Line Plot of a0 vs. Probability Density",col="red")
+
 ```
 
