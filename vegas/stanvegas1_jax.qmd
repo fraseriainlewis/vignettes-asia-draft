@@ -466,7 +466,7 @@ class StableLikelihood2:
 #explicitly set seed
 gvar.ranseed(99991)
 
-Ngrid=300
+Ngrid=50
 #a0= jnp.array([-1.5,-1.14,-1.,-0.5],dtype=jnp.float32)
 a0= jnp.linspace(-2.5,-0.0,Ngrid,dtype=jnp.float32)
 
@@ -508,6 +508,9 @@ par(mfrow=c(1,1))
 
 plot(density(extract(stan_fit_2,"beta[1,1]")$"beta[1,1]"),main="beta[1,1]",col="blue")
 lines(py$a0np,py$prob_dens,col="red")
+points(py$a0np,py$prob_dens,col="brown",pch=21,bg="brown")
+#f_interp <- splinefun(py$a0np, py$prob_dens, method = "fmm")
+#lines(py$a0np,f_interp(py$a0np),col="magenta")
 
 ```
 
