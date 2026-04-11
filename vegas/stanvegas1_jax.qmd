@@ -479,7 +479,7 @@ for x in a0:
   stop = jnp.array([1,1,1,1,1],dtype=jnp.float32)   # a0 a1
   searchPts=jnp.transpose(jnp.linspace(start, stop, 10000))
   model.l_max=jnp.max(compute_log_lik2(searchPts, model.y,model.T,model.a0))
-  integ = vegas.Integrator(jnp.array([[-1,1],[-1,1],[-1,1],[0.0001,1],[0.0001,1]],dtype=jnp.float32))
+  integ = vegas.Integrator(jnp.array([[-1, 1],[-1,1],[-1,1],[0.0001,1],[0.0001,1]],dtype=jnp.float32))
   res_warmup = integ(model, nitn=10, neval=10000)
   result = integ(model, nitn=10, neval=50000)
   marg_a0 = model.l_max + jnp.log(result.mean)
@@ -518,6 +518,7 @@ gg_a0_prob <- ggplot(data.frame(a0 = py$a0np, prob_dens = py$prob_dens), aes(x =
   labs(title = "Line Plot of a0 vs. Probability Density", x = "a0", y = "Probability Density")
 
 # Combine plots in a panel
-grid.arrange(gg_beta1, gg_a0_prob, ncol = 2)
+gg_combined <- gg_beta1 + gg_a0_prob + theme_minimal() + theme(legend.position = "none")
+grid.arrange(gg_combined, ncol = 1)
 ```
 
