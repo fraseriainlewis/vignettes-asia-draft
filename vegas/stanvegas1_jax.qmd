@@ -17,8 +17,11 @@ gg_combined <- ggplot(data.frame(
   x = c(stan_density_obj$x, py$a0np),
   y = c(stan_density_obj$y, py$prob_dens)
 ), aes(x = x, y = y)) +
-  geom_density(fill = "blue", alpha = 0.6) +
+  # Use geom_ribbon to plot the pre-calculated density area (y is the upper bound, 0 is the lower bound)
+  geom_ribbon(aes(ymin = 0, ymax = y), fill = "blue", alpha = 0.6) +
+  # Red line: Vegas comparison
   geom_line(color = "red") +
+  # Brown points: Vegas comparison points
   geom_point(color = "brown", shape = 21, fill = "brown") +
   labs(title = "Density Plot of beta[1,1] with Vegas Comparison", x = "beta[1,1]/a0", y = "Density/Probability")
 
