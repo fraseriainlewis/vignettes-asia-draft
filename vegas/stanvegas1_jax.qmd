@@ -10,7 +10,7 @@ par(mfrow=c(1,2))
 #print(summary(stan_fit_2))
 
 # Calculate density object for Stan fit
-stan_density_obj <- density(extract(stan_fit_2, "beta[1,1]"))
+stan_density_obj <- density(as.numeric(extract(stan_fit_2, "beta[1,1]")))
 
 # Create a single ggplot with density and Vegas probability line/points combined
 gg_combined <- ggplot(data.frame(
@@ -26,4 +26,3 @@ gg_combined <- ggplot(data.frame(
 grid.arrange(gg_combined, ncol = 1)
 
 ```
-
