@@ -24,3 +24,6 @@ gg_combined <- ggplot(data.frame(
 
 # Remove the par(mfrow) and png calls since we're making a single plot
 grid.arrange(gg_combined, ncol = 1)
+
+```
+
